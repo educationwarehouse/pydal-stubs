@@ -1,7 +1,7 @@
 import datetime
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-from .objects import Field, Table
+from .objects import Expression, Field, Table
 
 _Message = str
 _Result = tuple[Any, Any]
@@ -35,9 +35,11 @@ class DefaultValidatorProxy(Validator):
 
 class ANY_OF(Validator):
     def __init__(self, subs: Iterable[Validator], error_message: _Message | None = ...) -> None: ...
+    subs: Iterable[Validator]
 
 class CLEANUP(Validator):
     def __init__(self, regex: str | None = ...) -> None: ...
+    regex: str | None
 
 class CRYPT(Validator):
     def __init__(
@@ -49,11 +51,17 @@ class CRYPT(Validator):
         salt: bool | str = ...,
         max_length: int = ...,
     ) -> None: ...
+    digest_alg: str
+    key: str | None
+    max_length: int
+    min_length: int
+    salt: bool | str
 
 class LazyCrypt:
     crypt: CRYPT
     password: str
     def __init__(self, crypt: CRYPT, password: str) -> None: ...
+    crypted: Any
     def __str__(self) -> str: ...
     def __eq__(self, stored_password: object) -> bool: ...
     def __ne__(self, other: object) -> bool: ...
@@ -69,12 +77,17 @@ class IS_MATCH(Validator):
         extract: bool = ...,
         is_unicode: bool = ...,
     ) -> None: ...
+    extract: bool
+    is_unicode: bool
+    regex: Any
 
 class IS_ALPHANUMERIC(IS_MATCH):
     def __init__(self, error_message: _Message = ...) -> None: ...
 
 class IS_DATE(Validator):
     def __init__(self, format: str = ..., error_message: _Message = ...) -> None: ...
+    extremes: Any
+    format: str
 
 class IS_DATE_IN_RANGE(IS_DATE):
     def __init__(
@@ -84,11 +97,19 @@ class IS_DATE_IN_RANGE(IS_DATE):
         format: str = ...,
         error_message: _Message | None = ...,
     ) -> None: ...
+    extremes: Any
+    maximum: datetime.date | None
+    minimum: datetime.date | None
 
 class IS_DATETIME(Validator):
+    @staticmethod
+    def nice(format: str) -> str: ...
     def __init__(
         self, format: str = ..., error_message: _Message = ..., timezone: Any = ...
     ) -> None: ...
+    extremes: Any
+    format: str
+    timezone: Any
 
 class IS_DATETIME_IN_RANGE(IS_DATETIME):
     def __init__(
@@ -99,6 +120,9 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
         error_message: _Message | None = ...,
         timezone: Any = ...,
     ) -> None: ...
+    extremes: Any
+    maximum: datetime.datetime | None
+    minimum: datetime.datetime | None
 
 class IS_DECIMAL_IN_RANGE(Validator):
     def __init__(
@@ -108,6 +132,9 @@ class IS_DECIMAL_IN_RANGE(Validator):
         error_message: _Message | None = ...,
         dot: str = ...,
     ) -> None: ...
+    dot: str
+    maximum: Any
+    minimum: Any
 
 class IS_EMAIL(Validator):
     def __init__(
@@ -116,6 +143,8 @@ class IS_EMAIL(Validator):
         forced: str | None = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    banned: str | None
+    forced: str | None
 
 class IS_EMPTY_OR(Validator):
     other: Any
@@ -125,13 +154,18 @@ class IS_EMPTY_OR(Validator):
         null: Any = ...,
         empty_regex: str | None = ...,
     ) -> None: ...
+    empty_regex: str | None
+    multiple: Any
+    options: Any
     def set_self_id(self, id: Any) -> None: ...
+    def _options(self, *args: Any, **kwargs: Any) -> Any: ...
 
 # Kept by pyDAL for backward compatibility.
 IS_NULL_OR = IS_EMPTY_OR
 
 class IS_EQUAL_TO(Validator):
     def __init__(self, expression: Any, error_message: _Message = ...) -> None: ...
+    expression: Any
 
 class IS_EXPR(Validator):
     def __init__(
@@ -140,8 +174,11 @@ class IS_EXPR(Validator):
         error_message: _Message = ...,
         environment: Mapping[str, Any] | None = ...,
     ) -> None: ...
+    environment: Mapping[str, Any] | None
+    expression: str | Callable[[Any], Any]
 
 class IS_FILE(Validator):
+    def match(self, value1: Any, value2: Any) -> bool: ...
     def __init__(
         self,
         filename: str | None = ...,
@@ -150,6 +187,10 @@ class IS_FILE(Validator):
         case: int = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    case: int
+    extension: str | Sequence[str] | None
+    filename: str | None
+    lastdot: bool
 
 class IS_FLOAT_IN_RANGE(Validator):
     def __init__(
@@ -159,6 +200,9 @@ class IS_FLOAT_IN_RANGE(Validator):
         error_message: _Message | None = ...,
         dot: str = ...,
     ) -> None: ...
+    dot: str
+    maximum: float | None
+    minimum: float | None
 
 class IS_GENERIC_URL(Validator):
     def __init__(
@@ -167,6 +211,8 @@ class IS_GENERIC_URL(Validator):
         allowed_schemes: Sequence[str | None] | None = ...,
         prepend_scheme: str | None = ...,
     ) -> None: ...
+    allowed_schemes: Sequence[str | None] | None
+    prepend_scheme: str | None
 
 class IS_HTTP_URL(Validator):
     def __init__(
@@ -176,6 +222,9 @@ class IS_HTTP_URL(Validator):
         prepend_scheme: str | None = ...,
         allowed_tlds: Sequence[str] | None = ...,
     ) -> None: ...
+    allowed_schemes: Sequence[str | None] | None
+    allowed_tlds: Sequence[str] | None
+    prepend_scheme: str | None
 
 class IS_URL(Validator):
     def __init__(
@@ -186,6 +235,10 @@ class IS_URL(Validator):
         prepend_scheme: str | None = ...,
         allowed_tlds: Sequence[str] | None = ...,
     ) -> None: ...
+    allowed_schemes: Sequence[str | None] | None
+    allowed_tlds: Sequence[str] | None
+    mode: str
+    prepend_scheme: str | None
 
 class IS_IMAGE(Validator):
     def __init__(
@@ -196,6 +249,10 @@ class IS_IMAGE(Validator):
         aspectratio: tuple[float, float] = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    aspectratio: tuple[float, float]
+    extensions: Sequence[str]
+    maxsize: tuple[int, int]
+    minsize: tuple[int, int]
 
 class IS_INT_IN_RANGE(Validator):
     def __init__(
@@ -204,12 +261,14 @@ class IS_INT_IN_RANGE(Validator):
         maximum: int | None = ...,
         error_message: _Message | None = ...,
     ) -> None: ...
+    maximum: int | None
+    minimum: int | None
 
 class IS_IN_DB(Validator):
     def __init__(
         self,
         dbset: Any,
-        field: str | Field,
+        field: str | Field | Expression,
         label: str | Callable[[Any], str] | None = ...,
         error_message: _Message = ...,
         orderby: Any = ...,
@@ -224,8 +283,9 @@ class IS_IN_DB(Validator):
         delimiter: str | None = ...,
         auto_add: bool = ...,
     ) -> None: ...
+    _and: Validator | None
     dbset: Any
-    field: str | Field
+    field: str | Field | Expression
     ktable: str
     kfield: str
     fieldnames: list[str]
@@ -251,13 +311,13 @@ class IS_NOT_IN_DB(Validator):
     def __init__(
         self,
         dbset: Any,
-        field: str | Field,
+        field: str | Field | Expression,
         error_message: _Message = ...,
         allowed_override: Sequence[Any] = ...,
         ignore_common_filters: bool = ...,
     ) -> None: ...
     dbset: Any
-    field: str | Field
+    field: str | Field | Expression
     record_id: Any
     allowed_override: Sequence[Any]
     ignore_common_filters: bool
@@ -291,6 +351,12 @@ class IS_IPV4(Validator):
         is_automatic: bool | None = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    invert: bool
+    is_automatic: bool | None
+    is_localhost: bool | None
+    is_private: bool | None
+    maxip: str | Sequence[str]
+    minip: str | Sequence[str]
 
 class IS_IPV6(Validator):
     def __init__(
@@ -305,6 +371,14 @@ class IS_IPV6(Validator):
         subnets: str | Sequence[str] | None = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    is_6to4: bool | None
+    is_link_local: bool | None
+    is_multicast: bool | None
+    is_private: bool | None
+    is_reserved: bool | None
+    is_routeable: bool | None
+    is_teredo: bool | None
+    subnets: str | Sequence[str] | None
 
 class IS_IPADDRESS(Validator):
     def __init__(
@@ -326,14 +400,32 @@ class IS_IPADDRESS(Validator):
         is_ipv6: bool | None = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    invert: bool
+    is_6to4: bool | None
+    is_automatic: bool | None
+    is_ipv4: bool | None
+    is_ipv6: bool | None
+    is_link_local: bool | None
+    is_localhost: bool | None
+    is_multicast: bool | None
+    is_private: bool | None
+    is_reserved: bool | None
+    is_routeable: bool | None
+    is_teredo: bool | None
+    maxip: str | Sequence[str]
+    minip: str | Sequence[str]
+    subnets: str | Sequence[str] | None
 
 class IS_JSON(Validator):
     def __init__(self, error_message: _Message = ..., native_json: bool = ...) -> None: ...
+    native_json: bool
 
 class IS_LENGTH(Validator):
     def __init__(
         self, maxsize: int = ..., minsize: int = ..., error_message: _Message = ...
     ) -> None: ...
+    maxsize: int
+    minsize: int
 
 class IS_LIST_OF(Validator):
     def __init__(
@@ -343,6 +435,9 @@ class IS_LIST_OF(Validator):
         maximum: int | None = ...,
         error_message: _Message | None = ...,
     ) -> None: ...
+    maximum: int | None
+    minimum: int | None
+    other: Validator | Sequence[Validator] | None
 
 class IS_LIST_OF_STRINGS(Validator):
     def __init__(self, error_message: _Message = ...) -> None: ...
@@ -360,14 +455,19 @@ class IS_NOT_EMPTY(Validator):
     def __init__(
         self, error_message: _Message = ..., empty_regex: str | None = ...
     ) -> None: ...
+    empty_regex: str | None
 
 class IS_SAFE(Validator):
+    @staticmethod
+    def default_sanitizer(text: str) -> str: ...
     def __init__(
         self,
         sanitizer: Callable[[Any], Any] | None = ...,
         error_message: _Message = ...,
         mode: str = ...,
     ) -> None: ...
+    mode: str
+    sanitizer: Callable[[Any], Any] | None
 
 class IS_SLUG(Validator):
     def __init__(
@@ -377,6 +477,9 @@ class IS_SLUG(Validator):
         error_message: _Message = ...,
         keep_underscores: bool = ...,
     ) -> None: ...
+    check: bool
+    keep_underscores: bool
+    maxlen: int
     @staticmethod
     def urlify(value: str, maxlen: int = ..., keep_underscores: bool = ...) -> str: ...
 
@@ -395,6 +498,16 @@ class IS_STRONG(Validator):
         error_message: _Message | None = ...,
         es: bool = ...,
     ) -> None: ...
+    entropy: float | None
+    estring: Any
+    invalid: str
+    lower: int | None
+    max: int | None
+    min: int | None
+    number: int | None
+    special: int | None
+    specials: str
+    upper: int | None
 
 class IS_TIME(Validator):
     def __init__(self, error_message: _Message = ...) -> None: ...
@@ -408,6 +521,10 @@ class IS_UPLOAD_FILENAME(Validator):
         case: int = ...,
         error_message: _Message = ...,
     ) -> None: ...
+    case: int
+    extension: str | Sequence[str] | None
+    filename: str | None
+    lastdot: bool
 
 class UTC(datetime.tzinfo):
     ZERO: datetime.timedelta

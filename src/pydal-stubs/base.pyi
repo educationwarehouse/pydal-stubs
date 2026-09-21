@@ -1,7 +1,7 @@
 import logging
 from contextlib import AbstractContextManager
 from hashlib import _Hash
-from typing import Any, Callable, Iterable, Iterator, Literal, Mapping, Self, Sequence, overload
+from typing import Any, Callable, Iterable, Iterator, Literal, Mapping, Self, Sequence, TypeAlias, overload
 
 from .helpers.classes import (
     BasicStorage,
@@ -30,7 +30,7 @@ class MetaDAL(type):
     subclass still infers that subclass rather than collapsing to `Any`.
     """
 
-class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
+class DALBase(Serializable, BasicStorage, metaclass=MetaDAL):
     """
     A database connection. Defined tables are reachable as attributes, which is
     how `db.person` works at runtime.
@@ -72,6 +72,18 @@ class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
     _bigint_id: bool
     _debug: bool
     _check_reserved: Sequence[str] | None
+    _adapter_args: Mapping[str, Any] | None
+    _driver_args: Mapping[str, Any] | None
+    _drivers_available: Any
+    _attempts: int
+    _decode_credentials: bool
+    _ignore_field_case: bool
+    _migrated: list[str]
+    _pending_references: dict[str, Any]
+    _request_tenant: str
+    _aliased_tables: Any
+    _LAZY_TABLES: dict[str, Any]
+    RSK: Mapping[str, Any]
 
     def __new__(cls, uri: str | Mapping[str, Any] = ..., *args: Any, **kwargs: Any) -> Self: ...
     def __init__(
@@ -105,10 +117,10 @@ class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
     @staticmethod
     def get_instances() -> dict[str, Any]: ...
     @staticmethod
-    def distributed_transaction_begin(*instances: DAL) -> None: ...
+    def distributed_transaction_begin(*instances: DALBase) -> None: ...
     @staticmethod
-    def distributed_transaction_commit(*instances: DAL) -> None: ...
-    def single_transaction(self) -> AbstractContextManager[DAL]: ...
+    def distributed_transaction_commit(*instances: DALBase) -> None: ...
+    def single_transaction(self) -> AbstractContextManager[DALBase]: ...
     @property
     def tables(self) -> SQLCallableList: ...
     def import_table_definitions(
@@ -183,6 +195,32 @@ class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
         **kwargs: Any,
     ) -> None: ...
     def can_join(self) -> bool: ...
+    def _remove_references_to(self, thistable: _Table) -> None: ...
+    @staticmethod
+    def _distributed_keys(instances: Sequence[DALBase]) -> Any: ...
 
-def DAL_unpickler(db_uid: str) -> DAL: ...
-def DAL_pickler(db: DAL) -> tuple[Any, ...]: ...
+def DAL_unpickler(db_uid: str) -> DALBase: ...
+def DAL_pickler(db: DALBase) -> tuple[Any, ...]: ...
+
+# Nominal for subclassing, gradual for annotating.
+#
+# `DALBase` above is the real pyDAL surface. Frameworks that build on pyDAL
+# (typedal, py4web) should subclass it under `TYPE_CHECKING` and `pydal.DAL` at
+# runtime, which gives their subclass the whole inherited API -- including
+# `__getattr__` returning `Table`, so `db.<tablename>` stays typed:
+#
+#     if TYPE_CHECKING:
+#         from pydal.base import DALBase as _PyDAL
+#     else:
+#         _PyDAL = pydal.DAL
+#
+#     class MyDAL(_PyDAL): ...
+#
+# `DAL` itself stays gradual on purpose. Making it nominal means every
+# third-party `Callable[[DAL], ...]` annotation rejects functions annotated with
+# a DAL *subclass*, because parameter positions are contravariant. Those
+# annotations were vacuous while pyDAL shipped no types, so typing `DAL` turns
+# them into errors that cannot be fixed at either call site.
+#
+# `DALBase` exists only for type checkers; there is no runtime object by that name.
+DAL: TypeAlias = Any

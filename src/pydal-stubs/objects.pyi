@@ -81,6 +81,14 @@ class Table(Serializable, BasicStorage):
     ALL: SQLALL
     virtualfields: list[Any]
     add_method: MethodAdder
+    _actual: bool
+    _dalname: str
+    _migrate: bool | str | None
+    _references: list[Field]
+    _referenced_by: list[Field]
+    _referenced_by_list: list[Field]
+    _virtual_fields: list[Any]
+    _virtual_methods: list[Any]
 
     def __init__(
         self, db: DAL, tablename: str, *fields: Field | Table | str, **args: Any
@@ -105,6 +113,18 @@ class Table(Serializable, BasicStorage):
     def sqlsafe(self) -> str: ...
     @property
     def sqlsafe_alias(self) -> str: ...
+    @property
+    def sql_shortref(self) -> str: ...
+    @property
+    def sql_fullref(self) -> str: ...
+    @property
+    def _structure(self) -> Any: ...
+    def _filter_fields_for_operation(self, fields: Any) -> list[tuple[Field, Any]]: ...
+    def _compute_fields_for_operation(
+        self, fields: Any, to_compute: Any
+    ) -> OpRow: ...
+    def _fields_and_values_for_insert(self, fields: Any) -> OpRow: ...
+    def _fields_and_values_for_update(self, fields: Any) -> OpRow: ...
     def query_name(self, *args: Any, **kwargs: Any) -> tuple[str, ...]: ...
     def update(self, *args: Any, **kwargs: Any) -> None: ...
     def _drop(self, mode: str = ...) -> str: ...
@@ -116,11 +136,22 @@ class Table(Serializable, BasicStorage):
     def _filter_fields(
         self, record: Any, allow_id: bool = ..., writable_only: bool = ...
     ) -> dict[str, Any]: ...
+    # `record` is duck-typed: pyDAL only ever calls `record.get("id")` on it, so
+    # ORM row wrappers are legitimate here.
     def _validate_fields(
-        self, fields: Mapping[str, Any], record: Row | None = ...
+        self, fields: Mapping[str, Any], record: Any = ...
     ) -> tuple[dict[str, Any], dict[str, Any]]: ...
     def _create_references(self) -> None: ...
-    def _enable_record_versioning(self, *args: Any, **kwargs: Any) -> None: ...
+    def _enable_record_versioning(
+        self,
+        archive_db: DAL | None = ...,
+        archive_name: str = ...,
+        is_active: str = ...,
+        current_record: str = ...,
+        current_record_label: str | None = ...,
+        migrate: Any = ...,
+        redefine: Any = ...,
+    ) -> None: ...
     def _upload_fieldnames(self) -> set[str]: ...
     def truncate(self, mode: str = ...) -> None: ...
     # Returns the new row id. pyDAL hands back a `Reference` bound to this table,
@@ -143,10 +174,6 @@ class Table(Serializable, BasicStorage):
         transform: Callable[[Any], Any] | None = ...,
         validate: bool = ...,
         encoding: str = ...,
-        delimiter: str = ...,
-        quotechar: str = ...,
-        quoting: int = ...,
-        restore: bool = ...,
         **kwargs: Any,
     ) -> Any: ...
     def as_dict(self, flat: bool = ..., sanitize: bool = ...) -> dict[str, Any]: ...
@@ -157,6 +184,24 @@ class Table(Serializable, BasicStorage):
 
 class Select(BasicStorage):
     """A nested/CTE select usable in place of a table."""
+
+    ALL: SQLALL
+    _db: DAL
+    _tablename: str
+    _rname: str
+    _raw_rname: str
+    _query: Query | None
+    _qfields: list[Any]
+    _fields: list[str]
+    _attributes: dict[str, Any]
+    _common_filter: Any
+    _correlated: bool
+    _cte_recursive: bool
+    _virtual_fields: list[Any]
+    _virtual_methods: list[Any]
+    _sql_cache: Any
+    _colnames_cache: Any
+    virtualfields: list[Any]
 
     def __init__(
         self, db: DAL, query: Query | None, fields: Sequence[Any], attributes: Mapping[str, Any]
@@ -175,12 +220,19 @@ class Select(BasicStorage):
     def union(self, recursive: Any, union_type: str = ...) -> Select: ...
     def union_all(self, recursive: Any) -> Select: ...
     def cte(self, cte_collector: Any) -> Any: ...
-    def query_name(self, outer_scoped: Sequence[Any] = ...) -> tuple[str, ...]: ...
+    def query_name(self, outer_scoped: list[Any] = ...) -> tuple[str, ...]: ...
     @property
     def sql_shortref(self) -> str: ...
     @property
     def is_cte(self) -> bool: ...
     def wrap(self, *args: Any, **kwargs: Any) -> Select: ...
+    def _compile(
+        self,
+        outer_scoped: list[Any] = ...,
+        with_alias: bool = ...,
+        cte_collector: Any = ...,
+    ) -> tuple[Any, ...]: ...
+    def _filter_fields(self, record: Any, id: bool = ...) -> dict[str, Any]: ...
 
 class Expression:
     """A SQL expression. Comparisons build `Query` objects rather than booleans."""
@@ -192,7 +244,12 @@ class Expression:
     second: Any
     type: Any
     tablename: str | None
+    _table: Table | None
+    _itype: str | None
+    optional_args: dict[str, Any]
 
+    @property
+    def _dialect(self) -> Any: ...
     def __init__(
         self,
         db: DAL,
@@ -275,9 +332,19 @@ class FieldVirtual:
     name: str
     f: Callable[[Row], Any]
     type: Any
+    type_name: str
     label: str
     represent: Any
+    formatter: Callable[[Any], Any]
+    comment: str | None
     readable: bool
+    listable: bool
+    searchable: bool
+    writable: bool
+    requires: Any
+    widget: Any
+    tablename: str | None
+    filter_out: Callable[[Any], Any] | None
     def __init__(
         self,
         name: str | Callable[[Row], Any],
@@ -287,12 +354,12 @@ class FieldVirtual:
         table_name: str | None = ...,
         readable: bool = ...,
         listable: bool = ...,
-        searchable: bool = ...,
-        **kwargs: Any,
     ) -> None: ...
+    def bind(self, table: Table, name: str) -> None: ...
 
 class FieldMethod:
     name: str
+    f: Callable[..., Any]
     handler: Any
     def __init__(
         self,
@@ -300,6 +367,7 @@ class FieldMethod:
         f: Callable[..., Any] | None = ...,
         handler: Any = ...,
     ) -> None: ...
+    def bind(self, table: Table, name: str) -> None: ...
 
 class Field(Expression, Serializable):
     """A single column. Also the building block of queries: `db.t.f == 1`."""
@@ -338,11 +406,23 @@ class Field(Expression, Serializable):
     compute: Callable[[Row], Any] | None
     map_none: Any
     # Unbound fields carry None here; `Field.clone()` resets them too.
-    db: DAL | None  # type: ignore[assignment]
+    db: DAL | None
     table: Table | None
     _table: Table | None
     _db: DAL | None
     _rname: str
+    _raw_rname: str
+    _tablename: str
+    _itype: str | None
+    type_name: str
+    isattachment: bool
+    custom_store: Any
+    custom_retrieve: Any
+    custom_retrieve_file_properties: Any
+    custom_delete: Any
+    custom_qualifier: Any
+    filter_in: Callable[[Any], Any] | None
+    filter_out: Callable[[Any], Any] | None
 
     def __init__(
         self,
@@ -393,10 +473,22 @@ class Field(Expression, Serializable):
     def store(self, file: Any, filename: str | None = ..., path: str | None = ...) -> str: ...
     def retrieve(self, name: str, path: str | None = ..., nameonly: bool = ...) -> Any: ...
     def retrieve_file_properties(self, name: str, path: str | None = ...) -> dict[str, Any]: ...
-    def formatter(self, value: Any) -> Any: ...
+    def formatter(self, value: Any, none_value: Any = ...) -> Any: ...
+    def bind(self, table: Table) -> None: ...
+    def has_default_validator(self) -> bool: ...
+    def referenced_field(self) -> Field | None: ...
+    def referenced_table(self) -> Table | None: ...
+    @staticmethod
+    def _todate(value: Any, regex: Any = ...) -> Any: ...
+    @staticmethod
+    def _todatetime(value: Any, regex: Any = ...) -> Any: ...
+    @staticmethod
+    def _totime(value: Any, regex: Any = ...) -> Any: ...
     def __hash__(self) -> int: ...
     @property
     def sqlsafe(self) -> str: ...
+    @property
+    def sqlsafe_name(self) -> str: ...
     @property
     def longname(self) -> str: ...
 
@@ -404,11 +496,15 @@ class Query(Serializable):
     """A boolean SQL condition. Combine with `&`, `|` and `~`."""
 
     db: DAL
+    _db: DAL
     op: Any
     first: Any
     second: Any
     ignore_common_filters: bool
+    optional_args: dict[str, Any]
 
+    @property
+    def _dialect(self) -> Any: ...
     def __init__(
         self,
         db: DAL,
@@ -433,6 +529,7 @@ class Set(Serializable):
     """The rows matched by a query; the object returned by `db(query)`."""
 
     db: DAL
+    _db: DAL
     query: Query | None
     dquery: Any
 
@@ -459,9 +556,12 @@ class Set(Serializable):
     def _select(self, *fields: Any, **attributes: Any) -> str: ...
     def _delete(self) -> str: ...
     def _update(self, **update_fields: Any) -> str: ...
+    def _build_update_row(self, update_fields: Mapping[str, Any]) -> OpRow: ...
+    def _apply_update(self, table: Table, row: OpRow, run_callbacks: bool) -> int: ...
 
 class LazyReferenceGetter:
-    table: Table
+    db: DAL
+    tablename: str
     id: Any
     def __init__(self, table: Table, id: Any) -> None: ...
     def __call__(self, other_tablename: str) -> LazySet: ...
@@ -471,6 +571,7 @@ class LazySet:
     field: Field
     id: Any
     def __init__(self, field: Field, id: Any) -> None: ...
+    def _getset(self) -> Set: ...
     def __call__(self, query: Query, ignore_common_filters: bool = ...) -> Set: ...
     def where(self, query: Query, ignore_common_filters: bool = ...) -> Set: ...
     def isempty(self) -> bool: ...
@@ -488,6 +589,8 @@ class LazySet:
     def _update(self, **update_fields: Any) -> str: ...
 
 class VirtualCommand:
+    method: Callable[..., Any]
+    row: Row
     def __init__(self, method: Callable[..., Any], row: Row) -> None: ...
     def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
@@ -520,6 +623,7 @@ class BasicRows:
     def xml(self, strict: bool = ..., row_name: str = ..., rows_name: str = ...) -> str: ...
     def as_xml(self, row_name: str = ..., rows_name: str = ...) -> str: ...
     def as_json(self, mode: str = ..., default: Callable[[Any], Any] | None = ...) -> str: ...
+    def json(self, mode: str = ..., default: Callable[[Any], Any] | None = ...) -> str: ...
     def as_csv(self) -> str: ...
     def colnames_fields(self) -> list[Any]: ...
     def export_to_csv_file(self, ofile: Any, null: str = ..., *args: Any, **kwargs: Any) -> None: ...
@@ -567,9 +671,18 @@ class Rows(BasicRows):
     ) -> Rows: ...
     def group_by_value(self, *fields: Any, **args: Any) -> dict[Any, Any]: ...
     def render(self, i: int | None = ..., fields: Sequence[Any] | None = ...) -> Any: ...
+    def _restore_fields(self, fields: Any) -> Rows: ...
 
 class IterRows(BasicRows):
     """Streaming variant of `Rows` returned by `Set.iterselect()`."""
+
+    sql: str
+    blob_decode: bool
+    cacheable: bool
+    cursor: Any
+    last_item: Row | None
+    last_item_id: Any
+    _head: Row | None
 
     def __init__(
         self,

@@ -1,0 +1,23 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "pydal"
+version = "20260520.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/4e/1d576fcb6857f56cd0aeb413c387044fd609140628d1c401b7ae29ee6190/pydal-20260520.0.tar.gz", hash = "sha256:a1a01d28655231b7e0893ca13e9c92084549f7761042e1ae9ef70d37146737c4", size = 555035, upload-time = "2026-05-21T02:05:37.153Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/44/dd4e3dd0b0fa4c9d5467b2fab11b1b2c208dd4cc460540d73abfcf40e1d8/pydal-20260520.0-py2.py3-none-any.whl", hash = "sha256:f3dc3d4f9c2c032984479722834750778480c8c0ca7a51c3e40084cde3372a5d", size = 253221, upload-time = "2026-05-21T02:05:34.921Z" },
+]
+
+[[package]]
+name = "pydal-stubs"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pydal" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydal", specifier = ">=20251012.3" }]

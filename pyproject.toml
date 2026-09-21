@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.12.4,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "pydal-stubs"
-version = "0.1.0"
+version = "0.0.0"
 description = "PEP 561 type stubs for pyDAL"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -33,17 +33,12 @@ Homepage = "https://github.com/robinvandernoord/pydal-stubs"
 Issues = "https://github.com/robinvandernoord/pydal-stubs/issues"
 Source = "https://github.com/robinvandernoord/pydal-stubs"
 
-[tool.hatch.build.targets.wheel]
-# PEP 561 requires the directory to be named "<package>-stubs" verbatim.
-packages = ["src/pydal-stubs"]
-# "pydal-stubs" is not an importable module name, so hatchling's default editable
-# mode has nothing to hook and would install an empty distribution. Putting src/
-# on sys.path instead is what makes `pip install -e .` discoverable by mypy and
-# Pyright, which both scan sys.path entries for *-stubs directories.
-dev-mode-dirs = ["src"]
-
-[tool.hatch.build.targets.sdist]
-include = ["src/pydal-stubs", "README.md", "LICENSE", "pyproject.toml"]
+[tool.uv.build-backend]
+# PEP 561 requires the directory to be named "<package>-stubs" verbatim, which is
+# not a valid module name. uv_build handles that natively: it packages
+# src/pydal-stubs/ as-is and, for editable installs, puts src/ on sys.path so
+# mypy and Pyright still find the *-stubs directory.
+module-name = "pydal-stubs"
 
 [tool.mypy]
 python_version = "3.12"
@@ -52,3 +47,49 @@ strict = true
 [tool.pyright]
 include = ["src"]
 typeCheckingMode = "strict"
+
+[tool.vommit]
+allow_breaking_bang = true
+allow_breaking_footer = true
+prerelease_token = "beta"
+confirm = true
+ignore = []
+
+[tool.vommit.git]
+enabled = true
+origin = "origin"
+branch = "master"
+on_wrong_branch = "error"
+tag_format = "v{version}"
+commit_format = "{version}"
+
+[tool.vommit.changelog]
+enabled = true
+file = "CHANGELOG.md"
+include_prereleases = false
+placeholder = "<!-- next-version-placeholder -->"
+placeholder_regex = "^<!\\-\\-[ \\t]+next\\-version\\-placeholder[ \\t]+\\-\\->$"
+entry_title_format = "## v{version} ({date:%Y-%m-%d})"
+
+[tool.vommit.changelog.levels]
+break = "Breaking Change{s}"
+feat = "Feature{s}"
+fix = "Fix{es}"
+perf = "Performance"
+docs = "Documentation"
+
+[tool.vommit.pypi]
+enabled = true
+use_keyring = true
+
+[tool.vommit.commands]
+clean = "rm -rf ./dist"
+build = "uv build"
+publish = "uv publish"
+post_publish = ""
+
+[tool.vommit.version_bump_map]
+break = "major"
+feat = "minor"
+fix = "patch"
+perf = "patch"

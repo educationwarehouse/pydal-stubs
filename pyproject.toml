@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pydal-stubs"
+version = "0.1.0"
+description = "PEP 561 type stubs for pyDAL"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Robin van der Noord", email = "robin.vdn@educationwarehouse.nl" }]
+keywords = ["pydal", "stubs", "typing", "pep561", "type-hints"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Stubs Only",
+]
+
+# This is a *partial* stub package: modules without a .pyi here fall back to
+# pyDAL's own source, so the runtime package has to be installed alongside it.
+dependencies = ["pydal>=20251012.3"]
+
+[project.urls]
+Homepage = "https://github.com/robinvandernoord/pydal-stubs"
+Issues = "https://github.com/robinvandernoord/pydal-stubs/issues"
+Source = "https://github.com/robinvandernoord/pydal-stubs"
+
+[tool.hatch.build.targets.wheel]
+# PEP 561 requires the directory to be named "<package>-stubs" verbatim.
+packages = ["src/pydal-stubs"]
+# "pydal-stubs" is not an importable module name, so hatchling's default editable
+# mode has nothing to hook and would install an empty distribution. Putting src/
+# on sys.path instead is what makes `pip install -e .` discoverable by mypy and
+# Pyright, which both scan sys.path entries for *-stubs directories.
+dev-mode-dirs = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/pydal-stubs", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "strict"
